@@ -1,0 +1,60 @@
+name: Serv00 512MB runtime check
+
+on:
+  push:
+    branches: [deploy/serv00-free]
+  workflow_dispatch:
+
+jobs:
+  runtime-512mb:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build cloud image
+        run: docker build -t rakazo-serv00:test .
+      - name: Start PostgreSQL
+        run: |
+          docker network create rakazo-serv00
+          docker run -d --name rakazo-pg --network rakazo-serv00 \
+            -e POSTGRES_USER=rakazo \
+            -e POSTGRES_PASSWORD=rakazo \
+            -e POSTGRES_DB=rakazo \
+            postgres:16
+          for i in $(seq 1 30); do
+            docker exec rakazo-pg pg_isready -U rakazo && exit 0
+            sleep 1
+          done
+          exit 1
+      - name: Run Rakazo with 512MB
+        run: |
+          docker run -d --name rakazo-app --network rakazo-serv00 \
+            --memory=512m --memory-swap=512m -p 8080:8080 \
+            -e DATABASE_URL='postgres://rakazo:rakazo@rakazo-pg:5432/rakazo' \
+            -e BETTER_AUTH_SECRET='ci-only-auth-secret-32-characters-minimum' \
+            -e ENCRYPTION_KEY='0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef' \
+            -e SIGNUP_ALLOWLIST='ci@example.com' \
+            -e RAKAZO_PUBLIC_URL='https://rakazo.example.com' \
+            -e RAKAZO_ALLOW_CUSTOM_ORIGIN=1 \
+            -e NODE_OPTIONS='--max-old-space-size=320' \
+            rakazo-serv00:test
+          ok=0
+          for i in $(seq 1 120); do
+            if curl -fsS http://127.0.0.1:8080/health >/tmp/health.json; then
+              cat /tmp/health.json
+              ok=1
+              break
+            fi
+            if [ "$(docker inspect -f '{{.State.Running}}' rakazo-app)" != 'true' ]; then break; fi
+            sleep 1
+          done
+          docker stats --no-stream rakazo-app || true
+          docker inspect rakazo-app --format 'running={{.State.Running}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}}'
+          if [ "$ok" != 1 ]; then
+            docker logs rakazo-app || true
+            exit 1
+          fi
+          test "$(docker inspect -f '{{.State.OOMKilled}}' rakazo-app)" = 'false'
+      - name: Logs on failure
+        if: failure()
+        run: docker logs rakazo-app 2>/dev/null || true
