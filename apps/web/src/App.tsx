@@ -22,6 +22,11 @@ const OnboardingPage = lazy(() =>
 const WelcomePage = lazy(() =>
   import("./pages/Welcome").then((module) => ({ default: module.WelcomePage })),
 );
+const AgentCommandCenterPage = lazy(() =>
+  import("./pages/AgentCommandCenter").then((module) => ({
+    default: module.AgentCommandCenterPage,
+  })),
+);
 
 export function App() {
   const session = authClient.useSession();
@@ -40,7 +45,7 @@ export function App() {
     return <SessionUnavailable refetch={session.refetch} />;
   }
   if (gate === "loading") {
-    return window.location.pathname.startsWith("/app") ? (
+    return window.location.pathname.startsWith("/app") || window.location.pathname === "/central" ? (
       <ShellSkeleton />
     ) : (
       <div
@@ -73,6 +78,10 @@ export function App() {
           <Route
             path="/mcp/oauth/callback"
             element={user ? <McpOAuthCallbackPage /> : <Navigate to="/sign-in" replace />}
+          />
+          <Route
+            path="/central"
+            element={user ? <AgentCommandCenterPage /> : <Navigate to="/sign-in" replace />}
           />
           <Route path="/app" element={user ? <ShellPage /> : <Navigate to="/sign-in" replace />} />
           <Route
