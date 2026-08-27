@@ -26,9 +26,9 @@ jobs:
       - name: Verify startup entrypoint
         run: docker run --rm --entrypoint bash rakazo-back4app:test -lc 'test -x scripts/back4app-start.sh && test -f apps/api/src/back4app.ts && node --version && pnpm --version'
       - name: Typecheck cloud API
-        run: docker run --rm --entrypoint bash rakazo-back4app:test -lc 'pnpm --filter @rakazo/api check'
+        run: docker run --rm -e NODE_OPTIONS=--max-old-space-size=1024 --entrypoint bash rakazo-back4app:test -lc 'pnpm --filter @rakazo/api check'
       - name: Lint cloud entrypoint
-        run: docker run --rm --entrypoint bash rakazo-back4app:test -lc 'pnpm exec biome check apps/api/src/back4app.ts'
+        run: docker run --rm -e NODE_OPTIONS=--max-old-space-size=1024 --entrypoint bash rakazo-back4app:test -lc 'pnpm exec biome check apps/api/src/back4app.ts'
       - name: Smoke test with Back4App Free memory limit
         shell: bash
         run: |
