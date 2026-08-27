@@ -29,3 +29,48 @@ jobs:
         run: docker run --rm --entrypoint bash rakazo-back4app:test -lc 'pnpm --filter @rakazo/api check'
       - name: Lint cloud entrypoint
         run: docker run --rm --entrypoint bash rakazo-back4app:test -lc 'pnpm exec biome check apps/api/src/back4app.ts'
+      - name: Smoke test with Back4App Free memory limit
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker network create rakazo-smoke
+          docker run -d --name rakazo-pg --network rakazo-smoke \
+            -e POSTGRES_USER=rakazo \
+            -e POSTGRES_PASSWORD=rakazo \
+            -e POSTGRES_DB=rakazo \
+            postgres:16
+          for i in $(seq 1 30); do
+            if docker exec rakazo-pg pg_isready -U rakazo >/dev/null 2>&1; then break; fi
+            sleep 1
+          done
+          docker exec rakazo-pg pg_isready -U rakazo
+
+          docker run -d --name rakazo-app --network rakazo-smoke \
+            --memory=256m --memory-swap=256m -p 8080:8080 \
+            -e DATABASE_URL='postgres://rakazo:rakazo@rakazo-pg:5432/rakazo' \
+            -e BETTER_AUTH_SECRET='ci-only-auth-secret-32-characters-minimum' \
+            -e ENCRYPTION_KEY='0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef' \
+            -e SIGNUP_ALLOWLIST='ci@example.com' \
+            -e RAKAZO_PUBLIC_URL='https://rakazo.b4a.run' \
+            rakazo-back4app:test
+
+          ok=0
+          for i in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:8080/health >/tmp/health.json; then
+              cat /tmp/health.json
+              ok=1
+              break
+            fi
+            if [ "$(docker inspect -f '{{.State.Running}}' rakazo-app)" != 'true' ]; then break; fi
+            sleep 1
+          done
+          if [ "$ok" != 1 ]; then
+            docker logs rakazo-app || true
+            docker inspect rakazo-app --format 'running={{.State.Running}} exit={{.State.ExitCode}} oom={{.State.OOMKilled}}' || true
+            exit 1
+          fi
+          docker inspect rakazo-app --format 'running={{.State.Running}} oom={{.State.OOMKilled}}'
+          test "$(docker inspect -f '{{.State.OOMKilled}}' rakazo-app)" = 'false'
+      - name: Smoke logs on failure
+        if: failure()
+        run: docker logs rakazo-app 2>/dev/null || true
