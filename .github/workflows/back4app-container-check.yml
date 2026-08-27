@@ -11,6 +11,8 @@ on:
       - apps/**
       - packages/**
       - .github/workflows/back4app-container-check.yml
+  pull_request:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -21,5 +23,5 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build Back4App image
         run: docker build -t rakazo-back4app:test .
-      - name: Verify startup script exists
-        run: docker run --rm --entrypoint bash rakazo-back4app:test -lc 'test -x scripts/back4app-start.sh && node --version && pnpm --version'
+      - name: Verify startup entrypoint
+        run: docker run --rm --entrypoint bash rakazo-back4app:test -lc 'test -x scripts/back4app-start.sh && test -f apps/api/src/back4app.ts && node --version && pnpm --version'
