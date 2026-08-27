@@ -1,0 +1,25 @@
+name: Back4App container check
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - Dockerfile
+      - scripts/back4app-start.sh
+      - package.json
+      - pnpm-lock.yaml
+      - apps/**
+      - packages/**
+      - .github/workflows/back4app-container-check.yml
+  workflow_dispatch:
+
+jobs:
+  docker-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Back4App image
+        run: docker build -t rakazo-back4app:test .
+      - name: Verify startup script exists
+        run: docker run --rm --entrypoint bash rakazo-back4app:test -lc 'test -x scripts/back4app-start.sh && node --version && pnpm --version'
