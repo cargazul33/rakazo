@@ -14,7 +14,7 @@ COPY . .
 RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @rakazo/db generate
 RUN RAKAZO_ALLOW_DEV_SECRETS=1 pnpm --filter @rakazo/web build
-RUN mkdir -p dist \
+RUN mkdir -p apps/api/dist \
   && pnpm dlx esbuild@0.25.12 apps/api/src/back4app.ts \
     --bundle \
     --platform=node \
@@ -22,10 +22,7 @@ RUN mkdir -p dist \
     --target=node24 \
     --external:koffi \
     --external:ssh2 \
-    --external:@prisma/client \
-    --external:@prisma/adapter-pg \
-    --external:pg \
-    --outfile=dist/back4app.mjs
+    --outfile=apps/api/dist/back4app.mjs
 RUN chmod +x scripts/back4app-start.sh
 
 ENV NODE_ENV=production
