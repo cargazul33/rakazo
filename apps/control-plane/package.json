@@ -4,17 +4,11 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "wrangler dev",
-    "deploy": "wrangler deploy",
-    "check": "tsc --noEmit",
-    "db:create": "wrangler d1 create rakazo-agent-army",
-    "db:migrate:local": "wrangler d1 migrations apply rakazo-agent-army --local",
-    "db:migrate:remote": "wrangler d1 migrations apply rakazo-agent-army --remote",
-    "r2:create": "wrangler r2 bucket create rakazo-agent-artifacts"
-  },
-  "devDependencies": {
-    "@cloudflare/workers-types": "^4.20260820.0",
-    "typescript": "^5.9.2",
-    "wrangler": "^4.30.0"
+    "dev": "npx --yes wrangler@4.30.0 dev",
+    "deploy": "npx --yes wrangler@4.30.0 deploy",
+    "db:create": "npx --yes wrangler@4.30.0 d1 create rakazo-agent-army",
+    "db:migrate:local": "npx --yes wrangler@4.30.0 d1 migrations apply rakazo-agent-army --local",
+    "db:migrate:remote": "npx --yes wrangler@4.30.0 d1 migrations apply rakazo-agent-army --remote",
+    "r2:create": "npx --yes wrangler@4.30.0 r2 bucket create rakazo-agent-artifacts"
   }
 }
