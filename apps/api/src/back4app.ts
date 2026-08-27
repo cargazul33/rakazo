@@ -1,9 +1,9 @@
 import { readFile, stat } from "node:fs/promises";
-import path from "node:path";
 import type { Socket } from "node:net";
+import path from "node:path";
 import { serve } from "@hono/node-server";
 import { createDb } from "@rakazo/db";
-import { createApp, type AppHandles } from "./app.js";
+import { type AppHandles, createApp } from "./app.js";
 
 const port = Number(process.env.PORT ?? process.env.API_PORT ?? 8080);
 const webRoot = path.resolve(import.meta.dirname, "../../web/dist");
@@ -166,7 +166,12 @@ const server = serve({
   fetch: async (request) => {
     const url = new URL(request.url);
     if (!handles && url.pathname === "/health") {
-      return Response.json({ ok: true, initializing: true, runtime: "pi", sandbox: process.env.SANDBOX_PROVIDER });
+      return Response.json({
+        ok: true,
+        initializing: true,
+        runtime: "pi",
+        sandbox: process.env.SANDBOX_PROVIDER,
+      });
     }
 
     let app: AppHandles;
