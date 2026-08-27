@@ -25,7 +25,8 @@ function html(body: string): Response {
       "cache-control": "no-store",
       "x-content-type-options": "nosniff",
       "referrer-policy": "no-referrer",
-      "content-security-policy": "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'",
+      "content-security-policy":
+        "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data:; frame-ancestors 'none'",
     },
   });
 }
@@ -49,7 +50,8 @@ function requireAuth(request: Request, env: Env, mode: AuthMode): Response | nul
 
 async function bodyJson(request: Request): Promise<JsonMap> {
   const value = await request.json();
-  if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("JSON object required");
+  if (!value || typeof value !== "object" || Array.isArray(value))
+    throw new Error("JSON object required");
   return value as JsonMap;
 }
 
@@ -62,7 +64,11 @@ function numberValue(value: unknown, fallback: number): number {
 }
 
 function stringArray(value: unknown): string[] {
-  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0).map((item) => item.trim()) : [];
+  return Array.isArray(value)
+    ? value
+        .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+        .map((item) => item.trim())
+    : [];
 }
 
 function safeJsonParse(value: unknown): unknown {
@@ -76,7 +82,14 @@ function safeJsonParse(value: unknown): unknown {
 
 function normalizeRow(row: Record<string, unknown>): Record<string, unknown> {
   const next = { ...row };
-  for (const key of ["payload_json", "checkpoint_json", "result_json", "capabilities_json", "metadata_json", "detail_json"]) {
+  for (const key of [
+    "payload_json",
+    "checkpoint_json",
+    "result_json",
+    "capabilities_json",
+    "metadata_json",
+    "detail_json",
+  ]) {
     if (key in next) {
       const parsed = safeJsonParse(next[key]);
       delete next[key];
@@ -86,7 +99,13 @@ function normalizeRow(row: Record<string, unknown>): Record<string, unknown> {
   return next;
 }
 
-async function event(env: Env, jobId: string, eventType: string, actor: string, detail: unknown = {}): Promise<void> {
+async function event(
+  env: Env,
+  jobId: string,
+  eventType: string,
+  actor: string,
+  detail: unknown = {},
+): Promise<void> {
   await env.DB.prepare(
     "INSERT INTO job_events (job_id, event_type, actor, detail_json) VALUES (?, ?, ?, ?)",
   )
@@ -95,7 +114,9 @@ async function event(env: Env, jobId: string, eventType: string, actor: string, 
 }
 
 async function getJob(env: Env, id: string): Promise<Record<string, unknown> | null> {
-  const row = await env.DB.prepare("SELECT * FROM jobs WHERE id = ?").bind(id).first<Record<string, unknown>>();
+  const row = await env.DB.prepare("SELECT * FROM jobs WHERE id = ?")
+    .bind(id)
+    .first<Record<string, unknown>>();
   return row ? normalizeRow(row) : null;
 }
 
@@ -116,13 +137,17 @@ async function api(request: Request, env: Env): Promise<Response> {
     if (denied) return denied;
     const [jobs, workers, agents, artifacts] = await env.DB.batch([
       env.DB.prepare("SELECT status, COUNT(*) AS count FROM jobs GROUP BY status"),
-      env.DB.prepare("SELECT COUNT(*) AS count FROM workers WHERE last_seen_at >= datetime('now','-5 minutes')"),
+      env.DB.prepare(
+        "SELECT COUNT(*) AS count FROM workers WHERE last_seen_at >= datetime('now','-5 minutes')",
+      ),
       env.DB.prepare("SELECT COUNT(*) AS count FROM agents WHERE enabled = 1"),
       env.DB.prepare("SELECT COUNT(*) AS count FROM artifacts"),
     ]);
     return json({
       jobs: jobs.results,
-      workersOnline: Number((workers.results[0] as Record<string, unknown> | undefined)?.count ?? 0),
+      workersOnline: Number(
+        (workers.results[0] as Record<string, unknown> | undefined)?.count ?? 0,
+      ),
       agentsEnabled: Number((agents.results[0] as Record<string, unknown> | undefined)?.count ?? 0),
       artifacts: Number((artifacts.results[0] as Record<string, unknown> | undefined)?.count ?? 0),
     });
@@ -131,7 +156,9 @@ async function api(request: Request, env: Env): Promise<Response> {
   if (request.method === "GET" && path === "/api/agents") {
     const denied = requireAuth(request, env, "admin");
     if (denied) return denied;
-    const rows = await env.DB.prepare("SELECT * FROM agents ORDER BY rowid ASC").all<Record<string, unknown>>();
+    const rows = await env.DB.prepare("SELECT * FROM agents ORDER BY rowid ASC").all<
+      Record<string, unknown>
+    >();
     return json({ agents: rows.results });
   }
 
@@ -175,8 +202,12 @@ async function api(request: Request, env: Env): Promise<Response> {
     const status = text(url.searchParams.get("status"));
     const limit = Math.min(Math.max(Number(url.searchParams.get("limit") ?? 100), 1), 500);
     const stmt = status
-      ? env.DB.prepare("SELECT * FROM jobs WHERE status = ? ORDER BY priority DESC, created_at DESC LIMIT ?").bind(status, limit)
-      : env.DB.prepare("SELECT * FROM jobs ORDER BY CASE status WHEN 'RUNNING' THEN 0 WHEN 'QUEUED' THEN 1 WHEN 'RETRY' THEN 2 ELSE 3 END, priority DESC, created_at DESC LIMIT ?").bind(limit);
+      ? env.DB.prepare(
+          "SELECT * FROM jobs WHERE status = ? ORDER BY priority DESC, created_at DESC LIMIT ?",
+        ).bind(status, limit)
+      : env.DB.prepare(
+          "SELECT * FROM jobs ORDER BY CASE status WHEN 'RUNNING' THEN 0 WHEN 'QUEUED' THEN 1 WHEN 'RETRY' THEN 2 ELSE 3 END, priority DESC, created_at DESC LIMIT ?",
+        ).bind(limit);
     const rows = await stmt.all<Record<string, unknown>>();
     return json({ jobs: rows.results.map(normalizeRow) });
   }
@@ -227,8 +258,12 @@ async function api(request: Request, env: Env): Promise<Response> {
     const body = await bodyJson(request);
     const workerId = text(body.workerId);
     const capabilities = stringArray(body.capabilities);
-    const leaseSeconds = Math.min(Math.max(Math.round(numberValue(body.leaseSeconds, 900)), 60), 3600);
-    if (!workerId || capabilities.length === 0) return json({ error: "workerId and capabilities required" }, 400);
+    const leaseSeconds = Math.min(
+      Math.max(Math.round(numberValue(body.leaseSeconds, 900)), 60),
+      3600,
+    );
+    if (!workerId || capabilities.length === 0)
+      return json({ error: "workerId and capabilities required" }, 400);
 
     const placeholders = capabilities.map(() => "?").join(",");
     const sql = `UPDATE jobs
@@ -260,8 +295,12 @@ async function api(request: Request, env: Env): Promise<Response> {
     const workerId = text(body.workerId);
     if (!workerId) return json({ error: "workerId required" }, 400);
     const stage = text(body.stage);
-    const checkpointData = body.checkpoint && typeof body.checkpoint === "object" ? body.checkpoint : {};
-    const leaseSeconds = Math.min(Math.max(Math.round(numberValue(body.leaseSeconds, 900)), 60), 3600);
+    const checkpointData =
+      body.checkpoint && typeof body.checkpoint === "object" ? body.checkpoint : {};
+    const leaseSeconds = Math.min(
+      Math.max(Math.round(numberValue(body.leaseSeconds, 900)), 60),
+      3600,
+    );
     const result = await env.DB.prepare(
       `UPDATE jobs SET
          stage = CASE WHEN ? = '' THEN stage ELSE ? END,
@@ -354,7 +393,8 @@ async function api(request: Request, env: Env): Promise<Response> {
     const id = decodeURIComponent(approval[1]);
     const body = await bodyJson(request);
     const decision = text(body.decision, "pending");
-    if (!["pending", "approved", "rejected"].includes(decision)) return json({ error: "invalid decision" }, 400);
+    if (!["pending", "approved", "rejected"].includes(decision))
+      return json({ error: "invalid decision" }, 400);
     const notes = text(body.notes).slice(0, 4000);
     await env.DB.prepare(
       "UPDATE jobs SET approval_state=?, approval_notes=?, updated_at=CURRENT_TIMESTAMP WHERE id=?",
@@ -370,7 +410,9 @@ async function api(request: Request, env: Env): Promise<Response> {
     const denied = requireAuth(request, env, "admin");
     if (denied) return denied;
     const id = decodeURIComponent(artifactList[1]);
-    const rows = await env.DB.prepare("SELECT id, job_id, name, mime_type, size_bytes, created_at FROM artifacts WHERE job_id=? ORDER BY created_at DESC")
+    const rows = await env.DB.prepare(
+      "SELECT id, job_id, name, mime_type, size_bytes, created_at FROM artifacts WHERE job_id=? ORDER BY created_at DESC",
+    )
       .bind(id)
       .all<Record<string, unknown>>();
     return json({ artifacts: rows.results });
@@ -381,7 +423,10 @@ async function api(request: Request, env: Env): Promise<Response> {
     if (denied) return denied;
     const id = decodeURIComponent(artifactList[1]);
     const name = text(url.searchParams.get("name"), "artifact.bin").slice(0, 180);
-    const mimeType = text(url.searchParams.get("mime"), request.headers.get("content-type") ?? "application/octet-stream");
+    const mimeType = text(
+      url.searchParams.get("mime"),
+      request.headers.get("content-type") ?? "application/octet-stream",
+    );
     const bytes = await request.arrayBuffer();
     if (bytes.byteLength > 25 * 1024 * 1024) return json({ error: "artifact exceeds 25 MB" }, 413);
     const artifactId = crypto.randomUUID();
@@ -393,8 +438,15 @@ async function api(request: Request, env: Env): Promise<Response> {
     )
       .bind(artifactId, id, name, key, mimeType, bytes.byteLength)
       .run();
-    await event(env, id, "ARTIFACT", authorized(request, env, "worker") ? "worker" : "admin", { artifactId, name, sizeBytes: bytes.byteLength });
-    return json({ artifact: { id: artifactId, jobId: id, name, mimeType, sizeBytes: bytes.byteLength } }, 201);
+    await event(env, id, "ARTIFACT", authorized(request, env, "worker") ? "worker" : "admin", {
+      artifactId,
+      name,
+      sizeBytes: bytes.byteLength,
+    });
+    return json(
+      { artifact: { id: artifactId, jobId: id, name, mimeType, sizeBytes: bytes.byteLength } },
+      201,
+    );
   }
 
   const artifactGet = routeMatch(path, /^\/api\/artifacts\/([^/]+)$/);
@@ -402,13 +454,18 @@ async function api(request: Request, env: Env): Promise<Response> {
     const denied = requireAuth(request, env, "admin");
     if (denied) return denied;
     const id = decodeURIComponent(artifactGet[1]);
-    const row = await env.DB.prepare("SELECT * FROM artifacts WHERE id=?").bind(id).first<Record<string, unknown>>();
+    const row = await env.DB.prepare("SELECT * FROM artifacts WHERE id=?")
+      .bind(id)
+      .first<Record<string, unknown>>();
     if (!row) return json({ error: "not found" }, 404);
     const object = await env.ARTIFACTS.get(String(row.object_key));
     if (!object) return json({ error: "object missing" }, 404);
     const headers = new Headers();
     object.writeHttpMetadata(headers);
-    headers.set("content-disposition", `attachment; filename="${String(row.name).replace(/\"/g, "")}"`);
+    headers.set(
+      "content-disposition",
+      `attachment; filename="${String(row.name).replace(/"/g, "")}"`,
+    );
     headers.set("cache-control", "private, no-store");
     return new Response(object.body, { headers });
   }
@@ -418,7 +475,9 @@ async function api(request: Request, env: Env): Promise<Response> {
     const denied = requireAuth(request, env, "admin");
     if (denied) return denied;
     const id = decodeURIComponent(events[1]);
-    const rows = await env.DB.prepare("SELECT * FROM job_events WHERE job_id=? ORDER BY id DESC LIMIT 500")
+    const rows = await env.DB.prepare(
+      "SELECT * FROM job_events WHERE job_id=? ORDER BY id DESC LIMIT 500",
+    )
       .bind(id)
       .all<Record<string, unknown>>();
     return json({ events: rows.results.map(normalizeRow) });
@@ -456,7 +515,9 @@ export default {
       const url = new URL(request.url);
       if (url.pathname.startsWith("/api/")) return await api(request, env);
       if (request.method === "GET" && (url.pathname === "/" || url.pathname === "/central")) {
-        return html(DASHBOARD.replace("Ejército de Agentes", env.PUBLIC_NAME || "Ejército de Agentes"));
+        return html(
+          DASHBOARD.replace("Ejército de Agentes", env.PUBLIC_NAME || "Ejército de Agentes"),
+        );
       }
       return new Response("Not found", { status: 404 });
     } catch (cause) {

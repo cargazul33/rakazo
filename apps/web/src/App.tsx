@@ -45,7 +45,8 @@ export function App() {
     return <SessionUnavailable refetch={session.refetch} />;
   }
   if (gate === "loading") {
-    return window.location.pathname.startsWith("/app") || window.location.pathname === "/central" ? (
+    return window.location.pathname.startsWith("/app") ||
+      window.location.pathname === "/central" ? (
       <ShellSkeleton />
     ) : (
       <div

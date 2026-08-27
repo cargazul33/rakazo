@@ -162,7 +162,10 @@ export function AgentCommandCenterPage() {
         ["LICITADOR", "DOCUMENTADOR", "AUDITOR"].includes(normalize(bot.name)),
       );
       const artifactLists = await Promise.all(
-        artifactBots.map(async (bot) => ({ bot, artifacts: await rpc.artifacts.list({ botId: bot.id }) })),
+        artifactBots.map(async (bot) => ({
+          bot,
+          artifacts: await rpc.artifacts.list({ botId: bot.id }),
+        })),
       );
       setApprovals(
         artifactLists.flatMap(({ bot, artifacts }) =>
@@ -214,7 +217,9 @@ export function AgentCommandCenterPage() {
           clientNonce: crypto.randomUUID(),
         });
       }
-      setNotice(created === 0 ? "El ejército base ya estaba creado." : `Se crearon ${created} agentes.`);
+      setNotice(
+        created === 0 ? "El ejército base ya estaba creado." : `Se crearon ${created} agentes.`,
+      );
       await refresh();
     } catch (cause) {
       setError(messageOf(cause));
@@ -258,7 +263,9 @@ export function AgentCommandCenterPage() {
 
   const activeRoles = ROLES.filter((role) => roleBots.has(normalize(role.name))).length;
   const missingRoles = ROLES.length - activeRoles;
-  const workingBots = bots.filter((bot) => /run|work|active|busy|thinking/i.test(bot.status)).length;
+  const workingBots = bots.filter((bot) =>
+    /run|work|active|busy|thinking/i.test(bot.status),
+  ).length;
   const openQueue = queue.filter((item) => item.status !== "done").length;
 
   return (
@@ -266,8 +273,12 @@ export function AgentCommandCenterPage() {
       <header className="sticky top-0 z-20 border-b border-[#1B1D20] bg-[#090A0B]/95 backdrop-blur">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-4 py-4 md:px-7">
           <div>
-            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7D838B]">Central operativa</div>
-            <h1 className="mt-1 text-xl font-semibold tracking-tight md:text-2xl">Ejército de agentes</h1>
+            <div className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[#7D838B]">
+              Central operativa
+            </div>
+            <h1 className="mt-1 text-xl font-semibold tracking-tight md:text-2xl">
+              Ejército de agentes
+            </h1>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -289,19 +300,23 @@ export function AgentCommandCenterPage() {
 
       <main className="mx-auto max-w-[1500px] px-4 pb-28 pt-5 md:px-7 md:pb-10">
         <div className="mb-5 flex gap-2 overflow-x-auto pb-1">
-          {([
-            ["dashboard", "Dashboard"],
-            ["agents", "Agentes"],
-            ["queue", "Cola"],
-            ["approvals", "Para firmar"],
-            ["health", "Salud"],
-          ] as Array<[Tab, string]>).map(([value, label]) => (
+          {(
+            [
+              ["dashboard", "Dashboard"],
+              ["agents", "Agentes"],
+              ["queue", "Cola"],
+              ["approvals", "Para firmar"],
+              ["health", "Salud"],
+            ] as Array<[Tab, string]>
+          ).map(([value, label]) => (
             <button
               key={value}
               type="button"
               onClick={() => setTab(value)}
               className={`shrink-0 rounded-full px-4 py-2 text-sm font-medium transition ${
-                tab === value ? "bg-[#F4F4F5] text-[#090A0B]" : "bg-[#111315] text-[#9DA2A9] hover:text-white"
+                tab === value
+                  ? "bg-[#F4F4F5] text-[#090A0B]"
+                  : "bg-[#111315] text-[#9DA2A9] hover:text-white"
               }`}
             >
               {label}
@@ -315,10 +330,22 @@ export function AgentCommandCenterPage() {
         {tab === "dashboard" ? (
           <section className="space-y-5">
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-              <Metric label="Agentes definidos" value={`${activeRoles}/${ROLES.length}`} hint={missingRoles ? `${missingRoles} faltantes` : "Ejército completo"} />
+              <Metric
+                label="Agentes definidos"
+                value={`${activeRoles}/${ROLES.length}`}
+                hint={missingRoles ? `${missingRoles} faltantes` : "Ejército completo"}
+              />
               <Metric label="Trabajando ahora" value={workingBots} hint="según estado Rakazo" />
-              <Metric label="Cola abierta" value={openQueue} hint={`${queue.length} trabajos registrados`} />
-              <Metric label="Para firmar" value={approvals.length} hint="requiere decisión humana" />
+              <Metric
+                label="Cola abierta"
+                value={openQueue}
+                hint={`${queue.length} trabajos registrados`}
+              />
+              <Metric
+                label="Para firmar"
+                value={approvals.length}
+                hint="requiere decisión humana"
+              />
               <Metric label="Regla comercial" value="× 1,90" hint="fija hasta autorización" />
             </div>
 
@@ -327,12 +354,18 @@ export function AgentCommandCenterPage() {
                 <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
                   <div>
                     <Eyebrow>Acción principal</Eyebrow>
-                    <h2 className="mt-2 text-2xl font-semibold tracking-tight">Procesar oportunidades rentables</h2>
+                    <h2 className="mt-2 text-2xl font-semibold tracking-tight">
+                      Procesar oportunidades rentables
+                    </h2>
                     <p className="mt-2 max-w-2xl text-sm leading-6 text-[#9BA0A7]">
-                      El GENERAL coordina detección, pliegos, cotización, match, stock, costos, auditoría y documentación. Cada agente trabaja por fases y deja checkpoints.
+                      El GENERAL coordina detección, pliegos, cotización, match, stock, costos,
+                      auditoría y documentación. Cada agente trabaja por fases y deja checkpoints.
                     </p>
                   </div>
-                  <StatusDot ok={Boolean(general)} label={general ? "GENERAL disponible" : "GENERAL faltante"} />
+                  <StatusDot
+                    ok={Boolean(general)}
+                    label={general ? "GENERAL disponible" : "GENERAL faltante"}
+                  />
                 </div>
                 <div className="mt-6 flex flex-col gap-2 sm:flex-row">
                   <PrimaryButton
@@ -345,7 +378,9 @@ export function AgentCommandCenterPage() {
                       )
                     }
                   >
-                    {busy === "process-all" ? "Enviando…" : "Procesar todas las licitaciones rentables"}
+                    {busy === "process-all"
+                      ? "Enviando…"
+                      : "Procesar todas las licitaciones rentables"}
                   </PrimaryButton>
                   <SecondaryButton
                     disabled={Boolean(busy)}
@@ -377,7 +412,11 @@ export function AgentCommandCenterPage() {
                   onClick={() => void createArmy()}
                   className="mt-5 w-full rounded-xl border border-[#2A2D31] bg-[#151719] px-4 py-3 text-sm font-semibold hover:bg-[#1B1E21] disabled:opacity-50"
                 >
-                  {busy === "create-army" ? "Creando agentes…" : missingRoles ? `Crear ejército base (${missingRoles} faltantes)` : "Ejército base completo"}
+                  {busy === "create-army"
+                    ? "Creando agentes…"
+                    : missingRoles
+                      ? `Crear ejército base (${missingRoles} faltantes)`
+                      : "Ejército base completo"}
                 </button>
               </Card>
             </div>
@@ -388,19 +427,30 @@ export function AgentCommandCenterPage() {
                   <Eyebrow>Estado de roles</Eyebrow>
                   <h2 className="mt-1 text-lg font-semibold">Cadena de trabajo</h2>
                 </div>
-                <span className="text-xs text-[#71767D]">{loading ? "actualizando…" : `${activeRoles} activos`}</span>
+                <span className="text-xs text-[#71767D]">
+                  {loading ? "actualizando…" : `${activeRoles} activos`}
+                </span>
               </div>
               <div className="mt-5 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                 {ROLES.map((role, index) => {
                   const bot = roleBots.get(normalize(role.name));
                   return (
-                    <div key={role.name} className="flex items-center gap-3 rounded-xl border border-[#1B1E21] bg-[#0D0F10] p-3.5">
-                      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#171A1D] text-xs font-semibold text-[#B7BBC0]">{String(index + 1).padStart(2, "0")}</div>
+                    <div
+                      key={role.name}
+                      className="flex items-center gap-3 rounded-xl border border-[#1B1E21] bg-[#0D0F10] p-3.5"
+                    >
+                      <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#171A1D] text-xs font-semibold text-[#B7BBC0]">
+                        {String(index + 1).padStart(2, "0")}
+                      </div>
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-sm font-semibold">{role.name}</div>
-                        <div className="truncate text-xs text-[#71767D]">{bot ? bot.status || "disponible" : "no creado"}</div>
+                        <div className="truncate text-xs text-[#71767D]">
+                          {bot ? bot.status || "disponible" : "no creado"}
+                        </div>
                       </div>
-                      <span className={`h-2.5 w-2.5 rounded-full ${bot ? "bg-emerald-400" : "bg-[#34383D]"}`} />
+                      <span
+                        className={`h-2.5 w-2.5 rounded-full ${bot ? "bg-emerald-400" : "bg-[#34383D]"}`}
+                      />
                     </div>
                   );
                 })}
@@ -417,11 +467,15 @@ export function AgentCommandCenterPage() {
                 <Card key={role.name}>
                   <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                     <div className="flex min-w-0 items-start gap-4">
-                      <div className={`mt-1 h-3 w-3 shrink-0 rounded-full ${bot ? "bg-emerald-400" : "bg-[#34383D]"}`} />
+                      <div
+                        className={`mt-1 h-3 w-3 shrink-0 rounded-full ${bot ? "bg-emerald-400" : "bg-[#34383D]"}`}
+                      />
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <h3 className="font-semibold">{role.name}</h3>
-                          <span className="rounded-full bg-[#17191C] px-2 py-1 text-[11px] text-[#8D9299]">{role.title}</span>
+                          <span className="rounded-full bg-[#17191C] px-2 py-1 text-[11px] text-[#8D9299]">
+                            {role.title}
+                          </span>
                         </div>
                         <p className="mt-1 text-sm text-[#8F949B]">{role.description}</p>
                         {bot ? (
@@ -436,11 +490,22 @@ export function AgentCommandCenterPage() {
                     <div className="flex shrink-0 flex-wrap gap-2">
                       {bot ? (
                         <>
-                          <Link to={`/app/${bot.id}`} className="rounded-lg border border-[#292C30] px-3 py-2 text-xs font-semibold hover:bg-[#17191C]">Abrir</Link>
+                          <Link
+                            to={`/app/${bot.id}`}
+                            className="rounded-lg border border-[#292C30] px-3 py-2 text-xs font-semibold hover:bg-[#17191C]"
+                          >
+                            Abrir
+                          </Link>
                           <button
                             type="button"
                             disabled={Boolean(busy)}
-                            onClick={() => void dispatch(bot, "Continuá tu trabajo pendiente desde el último checkpoint. Si no hay trabajo asignado, informá DISPONIBLE y no inventes una tarea.", `run-${bot.id}`)}
+                            onClick={() =>
+                              void dispatch(
+                                bot,
+                                "Continuá tu trabajo pendiente desde el último checkpoint. Si no hay trabajo asignado, informá DISPONIBLE y no inventes una tarea.",
+                                `run-${bot.id}`,
+                              )
+                            }
                             className="rounded-lg border border-[#292C30] px-3 py-2 text-xs font-semibold hover:bg-[#17191C] disabled:opacity-50"
                           >
                             Ejecutar
@@ -455,7 +520,9 @@ export function AgentCommandCenterPage() {
                           </button>
                         </>
                       ) : (
-                        <span className="rounded-lg border border-[#26292D] px-3 py-2 text-xs text-[#777C83]">Pendiente de creación</span>
+                        <span className="rounded-lg border border-[#26292D] px-3 py-2 text-xs text-[#777C83]">
+                          Pendiente de creación
+                        </span>
                       )}
                     </div>
                   </div>
@@ -472,24 +539,40 @@ export function AgentCommandCenterPage() {
                 <div>
                   <Eyebrow>GENERAL / scratchpad</Eyebrow>
                   <h2 className="mt-1 text-lg font-semibold">Cola persistente</h2>
-                  <p className="mt-1 text-sm text-[#7F858C]">Los trabajos deberían dividirse en unidades pequeñas y reanudables.</p>
+                  <p className="mt-1 text-sm text-[#7F858C]">
+                    Los trabajos deberían dividirse en unidades pequeñas y reanudables.
+                  </p>
                 </div>
-                <span className="rounded-full bg-[#151719] px-3 py-1.5 text-xs text-[#9A9FA6]">{openQueue} abiertos</span>
+                <span className="rounded-full bg-[#151719] px-3 py-1.5 text-xs text-[#9A9FA6]">
+                  {openQueue} abiertos
+                </span>
               </div>
               <div className="mt-5 divide-y divide-[#1B1E21]">
                 {queue.length ? (
                   queue.map((item) => (
-                    <div key={item.id} className="grid gap-2 py-4 md:grid-cols-[140px_1fr_180px] md:items-center">
+                    <div
+                      key={item.id}
+                      className="grid gap-2 py-4 md:grid-cols-[140px_1fr_180px] md:items-center"
+                    >
                       <StatusPill status={item.status} />
                       <div>
                         <div className="text-sm font-semibold">{item.title}</div>
-                        {item.notes ? <div className="mt-1 line-clamp-2 text-xs leading-5 text-[#747A81]">{item.notes}</div> : null}
+                        {item.notes ? (
+                          <div className="mt-1 line-clamp-2 text-xs leading-5 text-[#747A81]">
+                            {item.notes}
+                          </div>
+                        ) : null}
                       </div>
-                      <div className="text-xs text-[#636970] md:text-right">{formatDate(item.updatedAt)}</div>
+                      <div className="text-xs text-[#636970] md:text-right">
+                        {formatDate(item.updatedAt)}
+                      </div>
                     </div>
                   ))
                 ) : (
-                  <EmptyState title="No hay trabajos visibles en la cola" body="Cuando GENERAL registre tareas en su scratchpad aparecerán acá." />
+                  <EmptyState
+                    title="No hay trabajos visibles en la cola"
+                    body="Cuando GENERAL registre tareas en su scratchpad aparecerán acá."
+                  />
                 )}
               </div>
             </Card>
@@ -501,23 +584,44 @@ export function AgentCommandCenterPage() {
             <Card>
               <Eyebrow>Intervención humana</Eyebrow>
               <h2 className="mt-1 text-lg font-semibold">LISTA PARA FIRMAR</h2>
-              <p className="mt-1 text-sm text-[#7F858C]">Nada de esta bandeja debe firmarse, presentarse, comprarse o pagarse automáticamente.</p>
+              <p className="mt-1 text-sm text-[#7F858C]">
+                Nada de esta bandeja debe firmarse, presentarse, comprarse o pagarse
+                automáticamente.
+              </p>
               <div className="mt-5 grid gap-3 lg:grid-cols-2">
                 {approvals.length ? (
                   approvals.map((artifact) => (
-                    <div key={`${artifact.botId}-${artifact.id}`} className="rounded-xl border border-[#23262A] bg-[#0D0F10] p-4">
+                    <div
+                      key={`${artifact.botId}-${artifact.id}`}
+                      className="rounded-xl border border-[#23262A] bg-[#0D0F10] p-4"
+                    >
                       <div className="flex items-start justify-between gap-4">
                         <div className="min-w-0">
                           <div className="truncate text-sm font-semibold">{artifact.name}</div>
-                          <div className="mt-1 text-xs text-[#70767D]">Generado por {artifact.botName}</div>
+                          <div className="mt-1 text-xs text-[#70767D]">
+                            Generado por {artifact.botName}
+                          </div>
                         </div>
-                        <span className="rounded-full bg-amber-400/10 px-2 py-1 text-[11px] font-semibold text-amber-300">REVISAR</span>
+                        <span className="rounded-full bg-amber-400/10 px-2 py-1 text-[11px] font-semibold text-amber-300">
+                          REVISAR
+                        </span>
                       </div>
                       <div className="mt-4 flex gap-2">
-                        <Link to={`/app/${artifact.botId}`} className="rounded-lg bg-[#F1F1F2] px-3 py-2 text-xs font-semibold text-[#090A0B]">Abrir expediente</Link>
+                        <Link
+                          to={`/app/${artifact.botId}`}
+                          className="rounded-lg bg-[#F1F1F2] px-3 py-2 text-xs font-semibold text-[#090A0B]"
+                        >
+                          Abrir expediente
+                        </Link>
                         <button
                           type="button"
-                          onClick={() => void dispatch(bots.find((bot) => bot.id === artifact.botId), `Reauditá el artefacto ${artifact.name}. No firmes ni presentes. Informá solamente inconsistencias, riesgos y qué necesita aprobación humana.`, `reaudit-${artifact.id}`)}
+                          onClick={() =>
+                            void dispatch(
+                              bots.find((bot) => bot.id === artifact.botId),
+                              `Reauditá el artefacto ${artifact.name}. No firmes ni presentes. Informá solamente inconsistencias, riesgos y qué necesita aprobación humana.`,
+                              `reaudit-${artifact.id}`,
+                            )
+                          }
                           className="rounded-lg border border-[#2A2D31] px-3 py-2 text-xs font-semibold"
                         >
                           Pedir revisión
@@ -526,7 +630,12 @@ export function AgentCommandCenterPage() {
                     </div>
                   ))
                 ) : (
-                  <div className="lg:col-span-2"><EmptyState title="Todavía no hay ofertas para firmar" body="Los artefactos de LICITADOR, AUDITOR o DOCUMENTADOR aparecerán acá cuando tengan nombres relacionados con oferta, presupuesto o firma." /></div>
+                  <div className="lg:col-span-2">
+                    <EmptyState
+                      title="Todavía no hay ofertas para firmar"
+                      body="Los artefactos de LICITADOR, AUDITOR o DOCUMENTADOR aparecerán acá cuando tengan nombres relacionados con oferta, presupuesto o firma."
+                    />
+                  </div>
                 )}
               </div>
             </Card>
@@ -558,13 +667,17 @@ export function AgentCommandCenterPage() {
             <Card>
               <Eyebrow>Próxima integración</Eyebrow>
               <p className="mt-3 text-sm leading-6 text-[#8D9299]">
-                CPU, RAM, contenedores Docker, profundidad real de la cola y workers concurrentes requieren métricas del servidor. La pantalla ya queda preparada para incorporarlas cuando el nuevo VPS esté instalado.
+                CPU, RAM, contenedores Docker, profundidad real de la cola y workers concurrentes
+                requieren métricas del servidor. La pantalla ya queda preparada para incorporarlas
+                cuando el nuevo VPS esté instalado.
               </p>
             </Card>
             <Card>
               <Eyebrow>Principio de estabilidad</Eyebrow>
               <p className="mt-3 text-sm leading-6 text-[#8D9299]">
-                Muchos agentes lógicos, pocos workers simultáneos. Cada tarea debe persistir estado y reanudarse desde el último checkpoint en vez de depender de un análisis conversacional largo.
+                Muchos agentes lógicos, pocos workers simultáneos. Cada tarea debe persistir estado
+                y reanudarse desde el último checkpoint en vez de depender de un análisis
+                conversacional largo.
               </p>
             </Card>
           </section>
@@ -572,14 +685,23 @@ export function AgentCommandCenterPage() {
       </main>
 
       <nav className="fixed inset-x-3 bottom-3 z-30 grid grid-cols-5 gap-1 rounded-2xl border border-[#25282C] bg-[#0E1012]/95 p-1.5 shadow-2xl backdrop-blur md:hidden">
-        {([
-          ["dashboard", "Inicio"],
-          ["agents", "Agentes"],
-          ["queue", "Cola"],
-          ["approvals", "Firmar"],
-          ["health", "Salud"],
-        ] as Array<[Tab, string]>).map(([value, label]) => (
-          <button key={value} type="button" onClick={() => setTab(value)} className={`rounded-xl px-2 py-2.5 text-[11px] font-semibold ${tab === value ? "bg-[#F0F0F1] text-black" : "text-[#8B9097]"}`}>{label}</button>
+        {(
+          [
+            ["dashboard", "Inicio"],
+            ["agents", "Agentes"],
+            ["queue", "Cola"],
+            ["approvals", "Firmar"],
+            ["health", "Salud"],
+          ] as Array<[Tab, string]>
+        ).map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            onClick={() => setTab(value)}
+            className={`rounded-xl px-2 py-2.5 text-[11px] font-semibold ${tab === value ? "bg-[#F0F0F1] text-black" : "text-[#8B9097]"}`}
+          >
+            {label}
+          </button>
         ))}
       </nav>
     </div>
@@ -587,7 +709,11 @@ export function AgentCommandCenterPage() {
 }
 
 function Card({ children }: { children: React.ReactNode }) {
-  return <div className="rounded-2xl border border-[#202327] bg-[#0B0D0E] p-4 shadow-[0_18px_60px_rgba(0,0,0,0.18)] md:p-5">{children}</div>;
+  return (
+    <div className="rounded-2xl border border-[#202327] bg-[#0B0D0E] p-4 shadow-[0_18px_60px_rgba(0,0,0,0.18)] md:p-5">
+      {children}
+    </div>
+  );
 }
 
 function Metric({ label, value, hint }: { label: string; value: string | number; hint: string }) {
@@ -601,7 +727,11 @@ function Metric({ label, value, hint }: { label: string; value: string | number;
 }
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
-  return <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#6F757C]">{children}</div>;
+  return (
+    <div className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[#6F757C]">
+      {children}
+    </div>
+  );
 }
 
 function Row({ label, value }: { label: string; value: string }) {
@@ -622,22 +752,68 @@ function StatusDot({ ok, label }: { ok: boolean; label: string }) {
   );
 }
 
-function PrimaryButton({ children, disabled, onClick }: { children: React.ReactNode; disabled?: boolean; onClick: () => void }) {
-  return <button type="button" disabled={disabled} onClick={onClick} className="rounded-xl bg-[#F3F3F4] px-4 py-3 text-sm font-semibold text-[#08090A] hover:bg-white disabled:cursor-not-allowed disabled:opacity-50">{children}</button>;
+function PrimaryButton({
+  children,
+  disabled,
+  onClick,
+}: {
+  children: React.ReactNode;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className="rounded-xl bg-[#F3F3F4] px-4 py-3 text-sm font-semibold text-[#08090A] hover:bg-white disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      {children}
+    </button>
+  );
 }
 
-function SecondaryButton({ children, disabled, onClick }: { children: React.ReactNode; disabled?: boolean; onClick: () => void }) {
-  return <button type="button" disabled={disabled} onClick={onClick} className="rounded-xl border border-[#2A2D31] bg-[#121416] px-4 py-3 text-sm font-semibold hover:bg-[#191B1E] disabled:cursor-not-allowed disabled:opacity-50">{children}</button>;
+function SecondaryButton({
+  children,
+  disabled,
+  onClick,
+}: {
+  children: React.ReactNode;
+  disabled?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className="rounded-xl border border-[#2A2D31] bg-[#121416] px-4 py-3 text-sm font-semibold hover:bg-[#191B1E] disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      {children}
+    </button>
+  );
 }
 
 function Banner({ children, tone }: { children: React.ReactNode; tone: "error" | "success" }) {
-  return <div className={`mb-4 rounded-xl border px-4 py-3 text-sm ${tone === "error" ? "border-red-900/60 bg-red-950/30 text-red-200" : "border-emerald-900/60 bg-emerald-950/20 text-emerald-200"}`}>{children}</div>;
+  return (
+    <div
+      className={`mb-4 rounded-xl border px-4 py-3 text-sm ${tone === "error" ? "border-red-900/60 bg-red-950/30 text-red-200" : "border-emerald-900/60 bg-emerald-950/20 text-emerald-200"}`}
+    >
+      {children}
+    </div>
+  );
 }
 
 function StatusPill({ status }: { status: string }) {
   const done = status === "done";
   const parked = status === "parked";
-  return <span className={`w-fit rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${done ? "bg-emerald-400/10 text-emerald-300" : parked ? "bg-amber-400/10 text-amber-300" : "bg-sky-400/10 text-sky-300"}`}>{status}</span>;
+  return (
+    <span
+      className={`w-fit rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide ${done ? "bg-emerald-400/10 text-emerald-300" : parked ? "bg-amber-400/10 text-amber-300" : "bg-sky-400/10 text-sky-300"}`}
+    >
+      {status}
+    </span>
+  );
 }
 
 function EmptyState({ title, body }: { title: string; body: string }) {
