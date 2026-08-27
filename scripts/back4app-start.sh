@@ -22,4 +22,4 @@ done
 pnpm --filter @rakazo/db exec prisma migrate deploy
 
 # Prebundled at image-build time: avoids the runtime memory cost of tsx.
-exec node dist/back4app.mjs
+exec node apps/api/dist/back4app.mjs
