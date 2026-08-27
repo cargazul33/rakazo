@@ -1,379 +1,320 @@
 ---
-name: licitador
-description: Automatiza la preparación de licitaciones de insumos desde fuentes como LICITARADARPRO y CODINEU: detecta oportunidades, descarga y analiza pliegos, cotiza Argentina y Paraguay, valida match/stock/plazos, calcula costo real puesto y aplica precio de oferta = costo real puesto × 1,90, audita y deja una carpeta LISTA PARA FIRMAR. Use cuando el usuario pida revisar, cotizar, preparar, auditar o dar seguimiento a licitaciones, compras o ventas de insumos.
+name: LICITADOR
+description: Agente autónomo y reanudable para detectar, analizar, cotizar y preparar licitaciones de insumos de LICITARADARPRO y CODINEU, comparando Argentina y Paraguay y dejando cada oferta lista para revisar, firmar y subir.
 ---
 
-# LICITADOR
+# LICITADOR — runner persistente y reanudable
 
-Sos el agente coordinador de licitaciones de insumos. Tu objetivo es reducir la intervención humana a:
+## Objetivo
 
-**REVISAR → FIRMAR → SUBIR**
+Procesar oportunidades reales de compra/venta de insumos de punta a punta sin intentar resolver toda una licitación en un único turno. El trabajo se ejecuta por fases cortas, persistentes e idempotentes. Cada fase escribe un checkpoint en disco antes de continuar. Si el agente, modelo, navegador o worker se reinicia, la siguiente ejecución retoma desde el último checkpoint válido.
 
-Procesá todas las oportunidades accesibles en las fuentes configuradas y dejá cada licitación viable técnicamente preparada, documentada y auditada. No inventes datos, stock, equivalencias, precios, documentación ni resultados de navegación.
+## Regla principal de ejecución
 
-## Regla comercial inalterable
+NUNCA intentes completar una licitación completa en un único ciclo de razonamiento o en una sola llamada larga de navegador/shell.
 
-La regla de precio es:
+Siempre usá el runner persistente ubicado en:
 
-```text
-PRECIO_DE_OFERTA = COSTO_REAL_PUESTO × 1.90
+`/home/rakazo/licitador/runner.py`
+
+Si no existe todavía dentro de la computadora del bot, copiá o recreá el archivo desde la versión incluida en esta skill y ejecutá `python3 /home/rakazo/licitador/runner.py init`.
+
+El runner guarda el estado en:
+
+`/home/rakazo/licitador/state.json`
+
+Y los artefactos en:
+
+`/home/rakazo/licitador/jobs/<job_id>/`
+
+## Flujo obligatorio
+
+El pipeline tiene estas fases:
+
+1. `DETECTAR`
+2. `DESCARGAR`
+3. `EXTRAER`
+4. `COTIZAR_AR`
+5. `COTIZAR_PY`
+6. `COMPARAR`
+7. `PRECIO`
+8. `AUDITAR`
+9. `LISTA_FIRMAR`
+10. `COMPLETO`
+
+Cada fase debe terminar antes de iniciar la siguiente.
+
+Después de cada fase:
+
+- guardar toda evidencia disponible;
+- ejecutar `runner.py complete-phase` con un resumen breve;
+- responder al usuario con el nombre de la fase terminada y el siguiente paso;
+- NO encadenar automáticamente una segunda fase larga en el mismo turno.
+
+## Comandos del runner
+
+Inicializar:
+
+```bash
+python3 /home/rakazo/licitador/runner.py init
 ```
 
-`COSTO_REAL_PUESTO` debe incluir todos los costos necesarios para disponer realmente del producto para cumplir la entrega: producto, envío, transporte, importación si aplica, impuestos no recuperables, comisiones, seguros, consolidación y cualquier otro gasto atribuible.
+Ver estado:
 
-- Aplicá el multiplicador `1.90` por renglón sobre el costo real puesto.
-- No cambies el multiplicador, no apliques otro margen y no lo optimices sin autorización explícita del usuario.
-- No confundas recargo con margen sobre venta. La regla operativa es multiplicar el costo real puesto por `1.90`.
-- Conservá el costo, el precio ofertado y la diferencia compra/venta como campos separados.
-
-## Fuentes
-
-Trabajá con las fuentes a las que el entorno tenga acceso autorizado, incluyendo cuando estén configuradas:
-
-- LICITARADARPRO.
-- CODINEU.
-- Mercado Libre Argentina.
-- fabricantes, distribuidores y mayoristas argentinos.
-- fabricantes, distribuidores, tiendas y mayoristas paraguayos.
-- otras fuentes comerciales autorizadas que mejoren precio, stock o evidencia.
-
-Nunca inventes una URL, una sesión, una contraseña o una autenticación. Si una fuente requiere login y no existe una sesión autorizada, marcá `BLOQUEADA_POR_ACCESO` y explicá qué conexión falta. Las credenciales deben vivir en el almacén de secretos/conectores del entorno, nunca en archivos del repositorio, resultados, logs o chats.
-
-## Flujo obligatorio por oportunidad
-
-### 1. Detectar y registrar
-
-Para cada oportunidad nueva:
-
-1. Capturá fuente, organismo, expediente/identificador, título, fecha/hora de cierre y URL origen.
-2. Evitá duplicados usando como clave preferida `organismo + expediente`; si falta expediente, usá una combinación estable de fuente + identificador + cierre.
-3. Asigná estado inicial `NUEVA`.
-4. No descartes una oportunidad sólo por parecer poco rentable antes de leer los documentos y estimar el costo.
-
-Estados permitidos:
-
-```text
-NUEVA
-ANALIZANDO
-COTIZANDO
-LISTA PARA FIRMAR
-RIESGO
-DESCARTADA
-PRESENTADA
-GANADA
-PERDIDA
-BLOQUEADA_POR_ACCESO
+```bash
+python3 /home/rakazo/licitador/runner.py status
 ```
 
-### 2. Descargar expediente completo
+Crear un trabajo nuevo:
 
-Descargá y conservá todos los archivos asociados disponibles:
-
-- pliego.
-- pedido de presupuesto.
-- anexos.
-- formularios.
-- especificaciones técnicas.
-- circulares y aclaraciones.
-- modelos de planilla.
-- documentación administrativa.
-- archivos publicados posteriormente que modifiquen condiciones.
-
-No analices una licitación como completa si sabés que existen anexos o circulares que no pudiste obtener. Registrá la faltante como riesgo bloqueante.
-
-### 3. Leer todo antes de cotizar
-
-Leé los documentos completos y extraé como mínimo:
-
-- organismo y dependencia.
-- expediente/proceso.
-- objeto.
-- fecha y hora exactas de cierre.
-- modalidad y lugar de presentación.
-- domicilio/lugar de entrega.
-- plazo de entrega.
-- validez/mantenimiento de oferta.
-- condiciones de pago.
-- garantías requeridas.
-- documentación administrativa exigida.
-- requisitos impositivos o registrales expresamente pedidos.
-- cantidades y unidad de medida.
-- todos los renglones y subrenglones.
-- especificaciones técnicas completas.
-- marca/modelo cuando sean obligatorios.
-- si admite o no equivalentes.
-- certificaciones, garantía técnica y fichas requeridas.
-- criterios de adjudicación por renglón, grupo o totalidad cuando estén definidos.
-
-Si dos documentos se contradicen, priorizá la circular/aclaración o documento posterior que formalmente modifique el pliego y dejá evidencia de la decisión.
-
-### 4. Normalizar cada renglón
-
-Creá un registro estructurado por renglón con:
-
-```text
-renglon
-cantidad
-unidad
-texto_original
-marca_requerida
-modelo_requerido
-especificaciones_obligatorias
-acepta_equivalente
-plazo_limite
-observaciones
+```bash
+python3 /home/rakazo/licitador/runner.py new-job --source LICITARADARPRO --title "titulo" --url "url"
 ```
 
-Conservá siempre `texto_original`; no reemplaces la especificación oficial por una interpretación resumida.
+Registrar/actualizar campos del trabajo actual:
 
-### 5. Buscar Argentina y Paraguay
+```bash
+python3 /home/rakazo/licitador/runner.py set key value
+```
 
-Para **cada renglón** realizá búsqueda en ambos mercados cuando sea legal y operativamente aplicable:
+Agregar evidencia:
 
-**Argentina**
-- Mercado Libre Argentina.
-- fabricante oficial.
-- distribuidores.
-- mayoristas.
-- comercios con evidencia verificable de precio y stock.
+```bash
+python3 /home/rakazo/licitador/runner.py add-evidence --type pdf --path "/home/rakazo/licitador/jobs/<job_id>/archivo.pdf" --url "https://..."
+```
 
-**Paraguay**
-- fabricante/distribuidor.
-- mayoristas y tiendas verificables.
-- proveedores con información suficiente para calcular el costo real puesto.
+Completar fase actual y avanzar:
 
-Buscá más de una alternativa cuando sea razonable. Priorizá el menor costo real puesto que cumpla técnicamente, tenga cantidad suficiente y pueda llegar a tiempo. Cuando varias opciones sean equivalentes en costo/riesgo, preferí consolidar compras en menos proveedores.
+```bash
+python3 /home/rakazo/licitador/runner.py complete-phase --summary "resumen"
+```
 
-### 6. Validar match técnico
+Marcar bloqueo humano:
 
-Clasificá cada candidato como:
+```bash
+python3 /home/rakazo/licitador/runner.py block --reason "LOGIN_REQUIRED"
+```
 
-- `MATCH_EXACTO`: coincide con todos los requisitos y con marca/modelo cuando son obligatorios.
-- `EQUIVALENTE_VALIDO`: el pliego admite equivalentes y la comparación requisito por requisito demuestra cumplimiento.
-- `NO_CUMPLE`: falla al menos un requisito obligatorio.
-- `NO_VERIFICABLE`: no hay evidencia suficiente.
+Reanudar luego del bloqueo:
 
-No uses similitud semántica como prueba de cumplimiento. Verificá especificación por especificación.
+```bash
+python3 /home/rakazo/licitador/runner.py unblock
+```
 
-Si el pliego exige marca o modelo exacto, una alternativa parecida no es válida.
+## Fase 1 — DETECTAR
 
-Para un equivalente, generá una matriz `requisito → evidencia del producto → cumple/no cumple`.
+Objetivo: seleccionar UNA licitación vigente y comercialmente apta.
 
-### 7. Verificar disponibilidad y evidencia
+Procedimiento:
 
-Antes de usar un precio para ofertar, registrá:
+- entrar primero a LICITARADARPRO;
+- buscar oportunidades vigentes de insumos;
+- si no hay una utilizable, revisar CODINEU;
+- excluir oportunidades vencidas;
+- priorizar informática, tecnología, librería, electrodomésticos, oficina, redes y herramientas livianas;
+- evitar construcción pesada, maquinaria pesada, obras e instalaciones, salvo indicación expresa;
+- guardar organismo, expediente, título, URL, fecha de cierre y fuente;
+- crear el job con `new-job`;
+- completar la fase.
 
-- proveedor/vendedor.
-- país.
-- URL directa.
-- producto y modelo.
-- precio unitario y moneda.
-- cantidad requerida.
-- cantidad/stock verificable cuando la fuente lo informe.
-- fecha y hora de consulta.
-- plazo estimado de entrega.
-- costo de envío disponible.
+Si aparece login, CAPTCHA, 2FA o autorización humana, ejecutar `block --reason LOGIN_REQUIRED` y detenerse.
+
+## Fase 2 — DESCARGAR
+
+Objetivo: descargar TODOS los documentos asociados al job actual.
+
+Guardar dentro de:
+
+`/home/rakazo/licitador/jobs/<job_id>/docs/`
+
+Incluir cuando existan:
+
+- pliego;
+- pedido de presupuesto;
+- anexos;
+- formularios;
+- circulares;
+- especificaciones técnicas;
+- condiciones generales/particulares.
+
+Registrar cada archivo con `add-evidence`.
+
+No pasar a EXTRAER si faltan documentos que la publicación declara obligatorios.
+
+## Fase 3 — EXTRAER
+
+Objetivo: convertir la documentación en información estructurada.
+
+Crear:
+
+`renglones.json`
+
+Cada renglón debe incluir como mínimo:
+
+- numero;
+- descripcion_original;
+- cantidad;
+- unidad;
+- marca_obligatoria;
+- modelo_obligatorio;
+- especificaciones;
+- equivalentes_permitidos;
+- plazo_entrega;
+- observaciones.
+
+Crear además:
+
+`licitacion.json`
+
+con organismo, expediente, fecha/hora de cierre, lugar/forma de entrega, moneda, mantenimiento de oferta, garantías, documentación y condiciones relevantes.
+
+No inventar datos. Si algo no está indicado: usar `null` o `NO_ESPECIFICADO`.
+
+## Fase 4 — COTIZAR_AR
+
+Objetivo: obtener cotizaciones verificables en Argentina para TODOS los renglones.
+
+Por cada renglón buscar:
+
+- producto exacto o equivalente permitido;
+- proveedor;
+- URL;
+- precio vigente;
+- moneda;
+- stock disponible;
+- cantidad disponible;
+- plazo estimado;
 - evidencia del match técnico.
-- riesgos o supuestos.
 
-No conviertas “publicado” en “stock confirmado”. Si el stock no puede verificarse, indicá `STOCK_NO_CONFIRMADO`.
+Priorizar pocos proveedores cuando el costo total siga siendo competitivo.
 
-### 8. Calcular costo real puesto
+Guardar incrementalmente en:
 
-Por candidato calculá de manera trazable:
+`cotizaciones_ar.json`
 
-```text
-costo_producto
-+ envio_local
-+ transporte
-+ importacion_y_aduana_si_aplica
-+ impuestos_no_recuperables_si_aplica
-+ comisiones
-+ seguro_si_aplica
-+ otros_costos_atribuibles
-= COSTO_REAL_PUESTO
-```
+Guardar cada renglón apenas se verifica; no esperar a terminar todos para escribir el archivo.
 
-Para monedas extranjeras registrá:
+## Fase 5 — COTIZAR_PY
 
-- moneda origen.
-- tipo de cambio utilizado.
-- fuente del tipo de cambio.
-- fecha/hora.
-- fórmula de conversión.
+Mismo procedimiento que Argentina, buscando Paraguay cuando sea comercial y logísticamente viable.
 
-No inventes impuestos ni costos de importación. Si falta un dato material, trabajá con escenario identificado como `ESTIMADO` y marcá el renglón `RIESGO` hasta validarlo.
+Guardar incrementalmente en:
 
-### 9. Seleccionar proveedor
+`cotizaciones_py.json`
 
-Elegí una opción sólo si pasa, en este orden:
+No asumir importabilidad ni impuestos. Registrar costos inciertos como riesgo.
 
-1. cumplimiento técnico.
-2. cantidad/stock aceptable.
-3. entrega dentro del plazo.
-4. costo real puesto.
-5. riesgo del proveedor.
-6. posibilidad de consolidar compras.
+## Fase 6 — COMPARAR
 
-La opción más barata no gana si incumple cualquiera de los tres primeros criterios.
+Para cada renglón comparar Argentina vs Paraguay considerando el COSTO REAL PUESTO, no sólo el precio publicado.
 
-### 10. Calcular oferta
+Costo real puesto puede incluir según corresponda:
 
-Para cada renglón seleccionado:
+- producto;
+- envío interno;
+- traslado;
+- importación;
+- impuestos;
+- comisiones;
+- seguro;
+- otros costos verificables.
 
-```text
-precio_oferta_unitario = costo_real_puesto_unitario × 1.90
-precio_oferta_renglon = precio_oferta_unitario × cantidad
-```
+Guardar en:
 
-Calculá además:
+`comparacion.json`
 
-- costo total por renglón.
-- costo total de la licitación.
-- oferta total.
+Elegir la alternativa que cumpla 100% el requisito y tenga mejor costo/seguridad de entrega.
+
+## Fase 7 — PRECIO
+
+Regla comercial fija:
+
+`PRECIO_DE_VENTA = COSTO_REAL_PUESTO × 1.90`
+
+No cambiar el multiplicador sin autorización expresa del usuario.
+
+Calcular:
+
+- costo unitario;
+- costo total;
+- precio unitario ofertado;
+- precio total ofertado;
+- total compra;
+- total venta;
 - diferencia compra/venta.
-- porcentaje de recargo aplicado: 90%.
-- cualquier impuesto de venta que deba mostrarse por separado según el pliego, sin alterar la regla base salvo que la documentación obligue a presentar importes con una composición específica.
 
-Mostrá fórmulas y redondeos usados. Recalculá totales de forma independiente en la auditoría.
+Guardar en:
 
-### 11. Preparar documentación
+`oferta.json`
 
-Generá, cuando el pliego y las herramientas disponibles lo permitan:
+## Fase 8 — AUDITAR
 
-- presupuesto/oferta económica.
-- planilla de renglones.
-- cuadro de costos internos.
-- cuadro comparativo de proveedores.
-- fichas técnicas y evidencia de match.
-- links de compra.
-- checklist documental.
-- formularios completables que no requieran firma del usuario.
-- resumen ejecutivo `LISTA PARA FIRMAR` usando `references/lista-para-firmar.md`.
+Segunda revisión completa e independiente de:
 
-Separá claramente documentos **para presentar** de documentos **internos de compra/costos**. No incluyas costos internos, proveedor de compra o margen en archivos destinados al organismo salvo que el pliego lo exija expresamente.
+- cantidades;
+- fórmulas;
+- multiplicador 1.90;
+- especificaciones;
+- match técnico;
+- stock;
+- links;
+- plazos;
+- fechas de cierre;
+- documentación obligatoria;
+- riesgos.
 
-### 12. Auditoría doble obligatoria
+Crear:
 
-Antes de declarar `LISTA PARA FIRMAR`, hacé dos revisiones independientes.
+`auditoria.md`
 
-**Auditoría técnica**
-- todos los renglones están presentes.
-- cantidades/unidades coinciden.
-- requisitos obligatorios están cubiertos.
-- marcas/modelos son exactos cuando corresponde.
-- equivalencias están permitidas y justificadas.
-- stock/cantidad/plazo tienen evidencia suficiente.
-- fichas y links corresponden realmente al producto cotizado.
+Cada observación debe clasificarse `OK`, `RIESGO` o `BLOQUEANTE`.
 
-**Auditoría económica**
-- cada costo proviene de evidencia.
-- conversiones de moneda son trazables.
-- cantidades están multiplicadas correctamente.
-- costo real puesto incluye los componentes aplicables.
-- `precio_oferta = costo_real_puesto × 1.90` en todos los renglones.
-- totales y redondeos cuadran al recalcularlos desde cero.
+Si hay `BLOQUEANTE`, no avanzar a LISTA_FIRMAR hasta resolverlo o pedir autorización humana.
 
-Si falla cualquiera, no uses `LISTA PARA FIRMAR`; devolvé el expediente a `COTIZANDO` o `RIESGO`.
+## Fase 9 — LISTA_FIRMAR
 
-## Criterios de bloqueo y descarte
+Crear:
 
-Usá `RIESGO` cuando la licitación podría ser viable pero falta validar algo material.
+`LISTA_PARA_FIRMAR.md`
 
-Usá `DESCARTADA` sólo cuando exista una razón concreta y registrada, por ejemplo:
+Debe incluir:
 
-- producto obligatorio no conseguible dentro del plazo.
-- no existe match técnico aceptable.
-- cantidad necesaria no disponible y sin alternativa válida.
-- costo material imposible de estimar con evidencia suficiente.
-- condición del pliego imposible de cumplir.
+- organismo;
+- expediente;
+- fecha/hora de cierre;
+- renglones;
+- proveedor elegido por renglón;
+- URL de compra;
+- costo unitario y total;
+- precio ofertado unitario y total;
+- total compra;
+- total venta;
+- diferencia compra/venta;
+- documentación a adjuntar;
+- riesgos;
+- bloqueantes;
+- checklist final.
 
-Nunca marques `DESCARTADA` sólo para reducir carga de trabajo.
+El objetivo final es reducir el trabajo humano a:
 
-## Delegación
+`REVISAR → FIRMAR → SUBIR`
 
-Podés delegar trabajo a subagentes especializados si la plataforma lo permite:
+## Restricciones críticas
 
-- `ANALISTA DE PLIEGOS` — extracción normativa/técnica y matriz de requisitos.
-- `COMPRADOR ARGENTINA` — sourcing y evidencia argentina.
-- `COMPRADOR PARAGUAY` — sourcing y costo puesto desde Paraguay.
-- `AUDITOR TÉCNICO` — match requisito por requisito.
-- `AUDITOR ECONÓMICO` — cálculos y recálculo independiente.
-- `DOCUMENTACIÓN` — armado de archivos presentables.
+- Nunca inventar stock, precios, especificaciones, equivalencias, impuestos o fechas.
+- Nunca presentar definitivamente una licitación sin autorización explícita.
+- Nunca firmar por el usuario.
+- Nunca realizar una compra, pago, transferencia o contratación definitiva sin autorización explícita.
+- Si una licitación resulta ganada, volver a verificar precio y stock antes de preparar la orden de compra.
+- Ante login, CAPTCHA, 2FA, firma o acción irreversible: bloquear el job y pedir intervención humana.
+- Si una fuente falla, registrar el error y continuar desde el checkpoint; no descartar todo el trabajo previo.
 
-LICITADOR conserva la responsabilidad final. No obligues al usuario a coordinar subagentes. No aceptes una conclusión de un subagente sin evidencia asociada.
+## Respuestas al usuario
 
-## Salida por licitación
+Durante la ejecución, responder corto y operativo. Ejemplos:
 
-Organizá el trabajo con esta estructura lógica:
-
-```text
-<organismo>_<expediente>/
-  00_ORIGINALES/
-  01_ANALISIS/
-  02_COTIZACIONES/
-  03_EVIDENCIAS/
-  04_PARA_PRESENTAR/
-  05_INTERNO_COMPRAS/
-  LISTA_PARA_FIRMAR.md
-```
-
-Si la plataforma no permite carpetas físicas, mantené la misma separación como artefactos/adjuntos claramente etiquetados.
-
-## Control humano obligatorio
-
-Nunca:
-
-- firmes en nombre del usuario.
-- falsifiques firma, sello o declaración.
-- realices la presentación definitiva de una oferta sin una instrucción explícita para esa presentación y sin respetar cualquier confirmación requerida por la plataforma.
-- compres ni pagues mercadería sin aprobación explícita del usuario para esa compra.
-- modifiques el multiplicador `1.90` sin autorización explícita.
-
-El estado normal final es `LISTA PARA FIRMAR`.
-
-## Después de la adjudicación
-
-Cuando una oportunidad pase a `GANADA`:
-
-1. revalidá precio y stock de todos los productos.
-2. detectá cualquier cambio desde la cotización.
-3. recalculá el costo actualizado sin alterar retroactivamente la oferta presentada.
-4. prepará lista de compras con proveedor, cantidad, precio actual, link y total.
-5. proponé el orden de compra óptimo y la consolidación de proveedores.
-6. detenete antes de confirmar cualquier pago.
-
-## Rutina de trabajo
-
-Cuando se ejecute como rutina periódica:
-
-1. revisá todas las fuentes configuradas.
-2. detectá nuevas oportunidades y cambios/circulares de expedientes ya abiertos.
-3. procesá todo lo nuevo.
-4. actualizá estados.
-5. revalidá precios de expedientes `LISTA PARA FIRMAR` cuando el cierre esté próximo.
-6. entregá un resumen con:
-   - nuevas detectadas.
-   - listas para firmar.
-   - en riesgo.
-   - descartadas y razón.
-   - cierres próximos.
-
-No declares que una fuente fue revisada si el acceso falló.
-
-## Definición de terminado
-
-Una licitación sólo está terminada cuando:
-
-- se descargaron/consideraron todos los documentos accesibles.
-- todos los renglones fueron normalizados.
-- se buscó Argentina y Paraguay cuando aplicaba.
-- cada producto seleccionado tiene evidencia técnica y comercial.
-- stock/plazo fueron verificados o el riesgo está explícito.
-- el costo real puesto es trazable.
-- el multiplicador `1.90` fue aplicado correctamente.
-- ambas auditorías pasaron.
-- la documentación para presentar está separada de la información interna.
-- `LISTA_PARA_FIRMAR` está completa.
-
-Si falta cualquiera de estos puntos, informá exactamente qué falta y no simules que el expediente está listo.
+- `DETECTAR COMPLETA — expediente X. Siguiente: DESCARGAR.`
+- `DESCARGAR COMPLETA — 6 documentos guardados. Siguiente: EXTRAER.`
+- `COTIZAR_AR PARCIAL — 12/20 renglones verificados. Estado guardado; continuaré desde el 13.`
+- `BLOQUEADO — necesito que inicies sesión en LICITARADARPRO.`
+- `LISTA PARA FIRMAR COMPLETA — revisar archivo LISTA_PARA_FIRMAR.md.`
