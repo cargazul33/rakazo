@@ -20,6 +20,11 @@ RUN mkdir -p dist \
     --platform=node \
     --format=esm \
     --target=node24 \
+    --external:koffi \
+    --external:ssh2 \
+    --external:@prisma/client \
+    --external:@prisma/adapter-pg \
+    --external:pg \
     --outfile=dist/back4app.mjs
 RUN chmod +x scripts/back4app-start.sh
 
