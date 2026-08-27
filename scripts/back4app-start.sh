@@ -1,44 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-export WEB_PORT="${PORT:-${WEB_PORT:-8080}}"
-export API_PROXY_TARGET="${API_PROXY_TARGET:-http://127.0.0.1:3100}"
+export API_PORT="${PORT:-${API_PORT:-8080}}"
 export DATA_DIR="${DATA_DIR:-/tmp/rakazo-data}"
 export SANDBOX_PROVIDER="${SANDBOX_PROVIDER:-desktop}"
 export AGENT_RUNTIME="${AGENT_RUNTIME:-pi}"
-export WAKEUP_DRIVER="${WAKEUP_DRIVER:-graphile}"
-export RAKAZO_HOST="${RAKAZO_HOST:-.b4a.run}"
+export WAKEUP_DRIVER="${WAKEUP_DRIVER:-memory}"
+export SIGNUPS_ENABLED="${SIGNUPS_ENABLED:-true}"
+# Keep the single Node process inside Back4App Free's 256 MB RAM budget.
+export NODE_OPTIONS="${NODE_OPTIONS:---max-old-space-size=160}"
 
 mkdir -p "$DATA_DIR"
 
-if [ -z "${DATABASE_URL:-}" ]; then
-  echo "DATABASE_URL is required"
-  exit 1
-fi
+required=(DATABASE_URL BETTER_AUTH_SECRET ENCRYPTION_KEY SIGNUP_ALLOWLIST)
+for key in "${required[@]}"; do
+  if [ -z "${!key:-}" ]; then
+    echo "$key is required"
+    exit 1
+  fi
+done
 
-if [ -z "${BETTER_AUTH_SECRET:-}" ]; then
-  echo "BETTER_AUTH_SECRET is required"
-  exit 1
-fi
-
-if [ -z "${ENCRYPTION_KEY:-}" ]; then
-  echo "ENCRYPTION_KEY is required"
-  exit 1
-fi
-
+# Linux containers can use Prisma's normal migration engine (unlike Android/Termux).
 pnpm --filter @rakazo/db exec prisma migrate deploy
 
-pnpm --filter @rakazo/api start &
-API_PID=$!
-
-pnpm --filter @rakazo/worker start &
-WORKER_PID=$!
-
-cleanup() {
-  kill "$API_PID" "$WORKER_PID" 2>/dev/null || true
-}
-trap cleanup EXIT INT TERM
-
-sleep 2
-
-exec pnpm --filter @rakazo/web preview --host 0.0.0.0 --port "$WEB_PORT"
+# One process serves API + SPA and runs the in-memory job worker. This avoids
+# three simultaneous Node runtimes on the 256 MB free container.
+exec pnpm --filter @rakazo/api exec tsx src/back4app.ts
