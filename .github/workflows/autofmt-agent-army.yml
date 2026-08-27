@@ -31,3 +31,4 @@ jobs:
           git add apps/control-plane/src/index.ts apps/web/src/App.tsx apps/web/src/pages/AgentCommandCenter.tsx
           git commit -m "style: format agent control plane"
           git push origin HEAD:feat/serverless-agent-control-plane
+# temporary branch-only formatter; remove before merge
