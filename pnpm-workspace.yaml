@@ -1,5 +1,6 @@
 packages:
   - "apps/*"
+  - "!apps/control-plane"
   - "packages/*"
   - "infra/sandboxes/supervisor"
   - "infra/updater"

@@ -1,0 +1,17 @@
+name = "rakazo-agent-control-plane"
+main = "src/index.ts"
+compatibility_date = "2026-08-27"
+workers_dev = true
+
+[vars]
+PUBLIC_NAME = "Ejército de Agentes"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "rakazo-agent-army"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "ARTIFACTS"
+bucket_name = "rakazo-agent-artifacts"

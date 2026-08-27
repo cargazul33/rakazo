@@ -1,0 +1,14 @@
+{
+  "name": "@rakazo/control-plane",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "npx --yes wrangler@4.30.0 dev",
+    "deploy": "npx --yes wrangler@4.30.0 deploy",
+    "db:create": "npx --yes wrangler@4.30.0 d1 create rakazo-agent-army",
+    "db:migrate:local": "npx --yes wrangler@4.30.0 d1 migrations apply rakazo-agent-army --local",
+    "db:migrate:remote": "npx --yes wrangler@4.30.0 d1 migrations apply rakazo-agent-army --remote",
+    "r2:create": "npx --yes wrangler@4.30.0 r2 bucket create rakazo-agent-artifacts"
+  }
+}
