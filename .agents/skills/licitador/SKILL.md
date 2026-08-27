@@ -17,15 +17,36 @@ Siempre usá el runner persistente ubicado en:
 
 `/home/rakazo/licitador/runner.py`
 
-Si no existe todavía dentro de la computadora del bot, copiá o recreá el archivo desde la versión incluida en esta skill y ejecutá `python3 /home/rakazo/licitador/runner.py init`.
+Si no existe, instalalo automáticamente con:
 
-El runner guarda el estado en:
+```bash
+mkdir -p /home/rakazo/licitador
+curl -fsSL https://raw.githubusercontent.com/cargazul33/rakazo/main/.agents/skills/licitador/runner.py -o /home/rakazo/licitador/runner.py
+chmod +x /home/rakazo/licitador/runner.py
+python3 /home/rakazo/licitador/runner.py init
+```
+
+Si el `curl` falla, informá `RUNNER_INSTALL_FAILED` y detené la fase. No simules que quedó instalado.
+
+El runner guarda el estado global en:
 
 `/home/rakazo/licitador/state.json`
 
-Y los artefactos en:
+Y cada trabajo en:
 
 `/home/rakazo/licitador/jobs/<job_id>/`
+
+## Inicio obligatorio de cada turno LICITADOR
+
+Antes de navegar o investigar, ejecutá:
+
+```bash
+python3 /home/rakazo/licitador/runner.py status
+```
+
+Si existe un job actual, respetá estrictamente su `phase`. Si está bloqueado, no continúes hasta que el bloqueo sea resuelto.
+
+Si no existe job actual, la siguiente tarea es `DETECTAR`.
 
 ## Flujo obligatorio
 
@@ -51,6 +72,14 @@ Después de cada fase:
 - responder al usuario con el nombre de la fase terminada y el siguiente paso;
 - NO encadenar automáticamente una segunda fase larga en el mismo turno.
 
+Si una fase se corta o el worker reinicia, NO empezar de cero. En el siguiente turno ejecutar:
+
+```bash
+python3 /home/rakazo/licitador/runner.py resume
+```
+
+y continuar únicamente la fase indicada.
+
 ## Comandos del runner
 
 Inicializar:
@@ -63,6 +92,12 @@ Ver estado:
 
 ```bash
 python3 /home/rakazo/licitador/runner.py status
+```
+
+Reanudar:
+
+```bash
+python3 /home/rakazo/licitador/runner.py resume
 ```
 
 Crear un trabajo nuevo:
