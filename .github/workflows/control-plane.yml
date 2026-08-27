@@ -1,0 +1,32 @@
+name: Control Plane
+
+on:
+  pull_request:
+    paths:
+      - "apps/control-plane/**"
+      - "infra/edge-workers/**"
+      - "scripts/bootstrap-cloudflare-control-plane.sh"
+      - "pnpm-workspace.yaml"
+  push:
+    branches: [main]
+    paths:
+      - "apps/control-plane/**"
+      - "infra/edge-workers/**"
+      - "scripts/bootstrap-cloudflare-control-plane.sh"
+      - "pnpm-workspace.yaml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Bundle Cloudflare Worker
+        working-directory: apps/control-plane
+        run: npx --yes wrangler@4.30.0 deploy --dry-run --outdir /tmp/rakazo-control-plane
+      - name: Compile pull worker
+        run: python3 -m py_compile infra/edge-workers/worker.py
+      - name: Check shell syntax
+        run: bash -n scripts/bootstrap-cloudflare-control-plane.sh
