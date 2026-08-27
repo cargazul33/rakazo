@@ -25,3 +25,7 @@ jobs:
         run: docker build -t rakazo-back4app:test .
       - name: Verify startup entrypoint
         run: docker run --rm --entrypoint bash rakazo-back4app:test -lc 'test -x scripts/back4app-start.sh && test -f apps/api/src/back4app.ts && node --version && pnpm --version'
+      - name: Typecheck cloud API
+        run: docker run --rm --entrypoint bash rakazo-back4app:test -lc 'pnpm --filter @rakazo/api check'
+      - name: Lint cloud entrypoint
+        run: docker run --rm --entrypoint bash rakazo-back4app:test -lc 'pnpm exec biome check apps/api/src/back4app.ts'
