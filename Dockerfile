@@ -14,10 +14,13 @@ RUN RAKAZO_ALLOW_DEV_SECRETS=1 pnpm --filter @rakazo/web build
 RUN chmod +x scripts/back4app-start.sh
 
 ENV NODE_ENV=production
-ENV WEB_PORT=8080
-ENV API_PROXY_TARGET=http://127.0.0.1:3100
+ENV PORT=8080
+ENV API_PORT=8080
 ENV DATA_DIR=/tmp/rakazo-data
-ENV RAKAZO_HOST=.b4a.run
+ENV SANDBOX_PROVIDER=desktop
+ENV AGENT_RUNTIME=pi
+ENV WAKEUP_DRIVER=memory
+ENV NODE_OPTIONS=--max-old-space-size=160
 
 EXPOSE 8080
 
